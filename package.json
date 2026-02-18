@@ -1,0 +1,43 @@
+{
+  "name": "junto-mcp",
+  "version": "0.1.0",
+  "description": "The payment protocol for people and agents. One MCP server, any payment rail.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "junto-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "npx tsx test/guardrails.test.ts",
+    "test:smoke": "npx tsx test/smoke.test.ts"
+  },
+  "keywords": [
+    "mcp",
+    "payments",
+    "pix",
+    "ai-agents",
+    "agentic-payments",
+    "stripe",
+    "woovi",
+    "junto",
+    "model-context-protocol"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/user/junto-mcp"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.3.0"
+  }
+}
