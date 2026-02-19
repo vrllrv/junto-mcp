@@ -1,0 +1,22 @@
+name: junto-mcp
+description: The payment protocol for people and agents. Multi-provider payments with built-in guardrails.
+icon: https://raw.githubusercontent.com/vrllrv/junto-mcp/main/logo.png
+categories:
+  - payments
+  - finance
+  - agentic
+configSchema:
+  type: object
+  properties:
+    WOOVI_APP_ID:
+      type: string
+      title: Woovi App ID
+      description: "Woovi/OpenPix API key for Pix payments (Brazil)"
+    STRIPE_SECRET_KEY:
+      type: string
+      title: Stripe Secret Key
+      description: "Stripe secret key for card, ACH, SEPA payments"
+    JUNTO_DAILY_LIMIT:
+      type: string
+      title: Daily Spend Limit (cents)
+      default: "50000"
