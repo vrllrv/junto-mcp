@@ -1,0 +1,50 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.vrllrv/junto-mcp",
+  "description": "The payment protocol for people and agents. One MCP server, any payment rail.",
+  "repository": {
+    "url": "https://github.com/vrllrv/junto-mcp",
+    "source": "github"
+  },
+  "version": "0.1.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "junto-mcp",
+      "version": "0.1.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "Woovi/OpenPix API key for Pix payments (Brazil)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "WOOVI_APP_ID"
+        },
+        {
+          "description": "Daily spending limit in cents (default: 50000)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "JUNTO_DAILY_LIMIT"
+        },
+        {
+          "description": "Max per-transaction amount in cents (default: 10000)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "JUNTO_TX_MAX"
+        },
+        {
+          "description": "Require human confirmation above this amount in cents (default: 5000)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "JUNTO_CONFIRM_ABOVE"
+        }
+      ]
+    }
+  ]
+}

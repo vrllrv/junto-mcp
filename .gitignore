@@ -5,3 +5,5 @@ dist/
 *.jsonl
 .junto/
 .DS_Store
+.mcpregistry_*
+mcp-publisher.exe

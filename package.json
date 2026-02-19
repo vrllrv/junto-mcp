@@ -1,6 +1,7 @@
 {
   "name": "junto-mcp",
-  "version": "0.1.0",
+  "mcpName": "io.github.vrllrv/junto-mcp",
+  "version": "0.1.1",
   "description": "The payment protocol for people and agents. One MCP server, any payment rail.",
   "type": "module",
   "main": "dist/index.js",
