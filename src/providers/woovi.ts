@@ -221,13 +221,31 @@ export class WooviProvider implements PaymentProvider {
   }
 
   async balance(): Promise<BalanceResult> {
-    // Woovi's public API doesn't expose a balance endpoint.
-    // This would require the merchant dashboard API or webhook-based tracking.
-    throw new JuntoError(
-      "Balance check not available for Woovi. Check app.woovi.com",
-      "BALANCE_NOT_SUPPORTED",
-      "woovi"
-    );
+    const raw = await this.request("GET", "/account") as {
+      accounts?: Array<{
+        balance?: {
+          total?: number;
+          available?: number;
+          blocked?: number;
+        };
+        accountName?: string;
+      }>;
+    };
+
+    const account = raw?.accounts?.[0];
+    if (!account?.balance || typeof account.balance.available !== "number") {
+      throw new JuntoError(
+        "Could not read balance. Ensure your API key has the ACCOUNT_GET_LIST scope.",
+        "BALANCE_SCOPE_MISSING",
+        "woovi"
+      );
+    }
+
+    return {
+      provider: this.name,
+      currency: "BRL",
+      available: account.balance.available,
+    };
   }
 
   info(): ProviderInfo {

@@ -6,6 +6,7 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
+    "junto": "dist/index.js",
     "junto-mcp": "dist/index.js"
   },
   "scripts": {

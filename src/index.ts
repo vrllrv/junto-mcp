@@ -2,10 +2,14 @@
 // src/index.ts
 // junto-mcp — The payment protocol for people and agents.
 //
-// Usage:
-//   WOOVI_APP_ID=xxx npx junto-mcp
+// Modes:
+//   junto pay 25.00 maria@email.com   ← Human CLI
+//   junto charge 10.00 "Coffee"       ← Human CLI
+//   junto --mcp                       ← MCP server (for AI clients)
+//   junto                             ← Shows help
 //
-// MCP Tools: pay, charge, status, refund, balance, providers, limits
+// Auto-detect: if a known CLI command is passed, run CLI mode.
+// If --mcp is passed or stdin is piped, run MCP server mode.
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -14,6 +18,31 @@ import { z } from "zod";
 import { PaymentProvider, JuntoError } from "./types.js";
 import { WooviProvider } from "./providers/woovi.js";
 import { Guardrails, DEFAULT_CONFIG } from "./guardrails.js";
+import { runCLI } from "./cli.js";
+
+// --- Mode detection ---
+// CLI commands that trigger human mode
+const CLI_COMMANDS = new Set([
+  "pay", "charge", "status", "refund", "balance",
+  "providers", "limits", "setup", "help",
+  "--help", "-h", "--version", "-v",
+]);
+
+const userArgs = process.argv.slice(2);
+const firstArg = userArgs[0]?.toLowerCase();
+const isMCP = firstArg === "--mcp" || (!process.stdin.isTTY && !firstArg);
+const isCLI = CLI_COMMANDS.has(firstArg ?? "") || (process.stdin.isTTY && !firstArg);
+
+if (isCLI) {
+  runCLI(userArgs).catch((err) => {
+    console.error("\nError:", err.message ?? err);
+    process.exit(1);
+  });
+} else if (!isMCP) {
+  // Unknown arg — show help
+  runCLI(["help"]).catch(() => process.exit(1));
+} else {
+// --- MCP Server Mode ---
 
 // --- Bootstrap providers from env ---
 
@@ -425,3 +454,4 @@ main().catch((err) => {
   console.error("[junto] Fatal:", err);
   process.exit(1);
 });
+} // end MCP server mode
