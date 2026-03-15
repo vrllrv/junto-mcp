@@ -16,6 +16,7 @@ import { createInterface } from "readline";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
+import QRCode from "qrcode";
 
 import { PaymentProvider, JuntoError } from "./types.js";
 import { WooviProvider } from "./providers/woovi.js";
@@ -459,6 +460,21 @@ async function cmdCharge(args: string[]) {
     if (description) console.log(`  ${label(t.description + ":")}  ${description}`);
     console.log(`  ${label(t.status + ":")}       ${success(result.status)}`);
     console.log(`  ${label(t.id + ":")}           ${accent(result.id)}`);
+
+    if (result.br_code) {
+      console.log();
+      try {
+        const qr = await QRCode.toString(result.br_code, {
+          type: "utf8",
+        } as QRCode.QRCodeToStringOptions);
+        const lines = qr.split("\n").filter((l: string) => l.length > 0);
+        for (const line of lines) {
+          console.log(`    ${line}`);
+        }
+      } catch {
+        // Fallback if QR generation fails
+      }
+    }
 
     if (result.payment_link) {
       console.log();
