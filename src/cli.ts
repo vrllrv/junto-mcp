@@ -576,20 +576,33 @@ async function cmdLimits() {
   console.log();
 }
 
+function pad(s: string, len: number): string {
+  return s + " ".repeat(Math.max(0, len - s.length));
+}
+
 function showHelp() {
   console.log();
   console.log(bold("  Junto") + dim(` — ${t.tagline}`));
   console.log();
   console.log(bold(`  ${t.commands}`));
   console.log();
-  console.log(`  ${cyan("junto setup")}                            ${t.helpSetup}`);
-  console.log(`  ${cyan("junto pay")} ${dim("<amount> <destination>")}       ${t.helpPay}`);
-  console.log(`  ${cyan("junto charge")} ${dim("<amount> [description]")}    ${t.helpCharge}`);
-  console.log(`  ${cyan("junto status")} ${dim("<id>")}                      ${t.helpStatus}`);
-  console.log(`  ${cyan("junto refund")} ${dim("<id>")}                      ${t.helpRefund}`);
-  console.log(`  ${cyan("junto balance")}                           ${t.helpBalance}`);
-  console.log(`  ${cyan("junto providers")}                         ${t.helpProviders}`);
-  console.log(`  ${cyan("junto limits")}                            ${t.helpLimits}`);
+
+  const cmds = [
+    { cmd: t.cmdSetup, args: "", desc: t.helpSetup },
+    { cmd: t.cmdPay, args: t.cmdPayUsageShort, desc: t.helpPay },
+    { cmd: t.cmdCharge, args: t.cmdChargeUsageShort, desc: t.helpCharge },
+    { cmd: t.cmdStatus, args: "<id>", desc: t.helpStatus },
+    { cmd: t.cmdRefund, args: "<id>", desc: t.helpRefund },
+    { cmd: t.cmdBalance, args: "", desc: t.helpBalance },
+    { cmd: t.cmdProviders, args: "", desc: t.helpProviders },
+    { cmd: t.cmdLimits, args: "", desc: t.helpLimits },
+  ];
+
+  for (const { cmd, args, desc } of cmds) {
+    const left = args ? `${cmd} ${args}` : cmd;
+    console.log(`  ${cyan(cmd)}${args ? " " + dim(args) : ""}${" ".repeat(Math.max(1, 40 - left.length))}${desc}`);
+  }
+
   console.log();
   console.log(bold(`  ${t.options}`));
   console.log();

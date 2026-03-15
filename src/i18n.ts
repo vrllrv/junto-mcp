@@ -97,6 +97,19 @@ export interface Messages {
   helpHelp: string;
   helpVersion: string;
 
+  // Command names (for help screen)
+  cmdSetup: string;
+  cmdPay: string;
+  cmdCharge: string;
+  cmdStatus: string;
+  cmdRefund: string;
+  cmdBalance: string;
+  cmdProviders: string;
+  cmdLimits: string;
+  cmdHelp: string;
+  cmdPayUsageShort: string;
+  cmdChargeUsageShort: string;
+
   // Errors
   invalidAmount: string;
   amountExamples: string;
@@ -190,6 +203,18 @@ const en: Messages = {
   helpHelp: "Show this help",
   helpVersion: "Show version",
 
+  cmdSetup: "junto setup",
+  cmdPay: "junto pay",
+  cmdCharge: "junto charge",
+  cmdStatus: "junto status",
+  cmdRefund: "junto refund",
+  cmdBalance: "junto balance",
+  cmdProviders: "junto providers",
+  cmdLimits: "junto limits",
+  cmdHelp: "junto help",
+  cmdPayUsageShort: "<amount> <destination>",
+  cmdChargeUsageShort: "<amount> [description]",
+
   invalidAmount: "Invalid amount",
   amountExamples: "Examples: 25.00, 10, R$50.00",
 };
@@ -281,6 +306,18 @@ const ptBR: Messages = {
   helpMcp: "Rodar como servidor MCP (para agentes IA)",
   helpHelp: "Mostrar esta ajuda",
   helpVersion: "Mostrar versao",
+
+  cmdSetup: "junto setup",
+  cmdPay: "junto pagar",
+  cmdCharge: "junto cobrar",
+  cmdStatus: "junto status",
+  cmdRefund: "junto reembolso",
+  cmdBalance: "junto saldo",
+  cmdProviders: "junto provedores",
+  cmdLimits: "junto limites",
+  cmdHelp: "junto ajuda",
+  cmdPayUsageShort: "<valor> <destino>",
+  cmdChargeUsageShort: "<valor> [descricao]",
 
   invalidAmount: "Valor invalido",
   amountExamples: "Exemplos: 25.00, 10, R$50.00",
