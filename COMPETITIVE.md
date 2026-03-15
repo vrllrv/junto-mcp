@@ -87,6 +87,7 @@ These are not MCP servers but represent the broader agentic payments ecosystem j
 2. **No multi-provider router exists** — every project wraps a single API. junto-mcp is the only protocol-level abstraction.
 3. **No one combines guardrails + routing** — even Payman AI (which has policies) locks you into their banking infrastructure.
 4. **Woovi has no official MCP** — first-mover opportunity for junto-mcp.
+5. **Ebanx has no MCP server** — major Brazilian global payments processor (Pix payouts, Boleto, Cards, LATAM coverage) with no MCP integration. Adding Ebanx would make junto-mcp the first MCP server to support outbound Pix payouts + cross-border LATAM payments.
 
 ---
 

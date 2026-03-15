@@ -127,6 +127,7 @@ Please confirm with the user before proceeding.
 | Provider | Region | Rails | Status |
 |---|---|---|---|
 | **Woovi/OpenPix** | Brazil | Pix | 🟢 Live (tested with real Pix transactions) |
+| **Ebanx** | Brazil + LATAM | Pix payouts, Boleto, Cards | 🟡 Next |
 | **Belvo** | Brazil | Open Finance (all banks) | 🟡 Next |
 | **Stripe** | Global | Cards, ACH, SEPA | 🟡 Next |
 | **Wise** | Global | Bank transfers | 🔴 Planned |
@@ -244,6 +245,7 @@ Every transaction is logged to `~/.junto/audit-YYYY-MM-DD.jsonl`:
 - [x] Audit ledger
 - [x] junto-skill (Claude behavioral layer)
 - [x] Interactive demo (`npx tsx demo/demo.ts`)
+- [ ] Ebanx provider (Pix payouts, Boleto, Cards — Brazil + LATAM)
 - [ ] Belvo provider (Open Finance — all Brazilian banks)
 - [ ] Stripe provider (Cards, ACH, SEPA)
 - [ ] junto-approve (Telegram/WhatsApp confirmation for HITL)
@@ -256,7 +258,7 @@ Every transaction is logged to `~/.junto/audit-YYYY-MM-DD.jsonl`:
 
 We need help with:
 
-- **Provider adapters** — Stripe, Wise, Belvo, Mercado Pago, PayPal, UPI
+- **Provider adapters** — Ebanx, Stripe, Wise, Belvo, Mercado Pago, PayPal, UPI
 - **Routing logic** — Cheapest vs fastest vs most reliable provider selection
 - **HITL patterns** — Approval flows across different MCP clients
 - **Security audit** — Review of the guardrails and auth system
