@@ -1,5 +1,6 @@
 // src/cli.ts
 // Human-friendly CLI for Junto.
+// Supports English and Brazilian Portuguese (auto-detected or JUNTO_LANG=pt-BR).
 //
 // Usage:
 //   junto pay 25.00 maria@email.com
@@ -19,6 +20,7 @@ import { homedir } from "os";
 import { PaymentProvider, JuntoError } from "./types.js";
 import { WooviProvider } from "./providers/woovi.js";
 import { Guardrails, DEFAULT_CONFIG } from "./guardrails.js";
+import { t } from "./i18n.js";
 
 // --- Colors ---
 
@@ -39,6 +41,7 @@ interface JuntoConfig {
   JUNTO_DAILY_LIMIT?: number;
   JUNTO_PER_TX_MAX?: number;
   JUNTO_CONFIRM_ABOVE?: number;
+  lang?: string;
 }
 
 function loadConfig(): JuntoConfig {
@@ -76,7 +79,6 @@ async function askSecret(prompt: string): Promise<string> {
     process.stdout.write(prompt);
     const stdin = process.stdin;
     if (!stdin.isTTY) {
-      // Non-interactive — read line normally
       const rl = createInterface({ input: stdin });
       rl.once("line", (line) => { rl.close(); resolve(line.trim()); });
       return;
@@ -115,21 +117,20 @@ async function askSecret(prompt: string): Promise<string> {
 
 async function confirm(prompt: string): Promise<boolean> {
   const answer = await ask(`${prompt} ${dim("[y/N]")} `);
-  return answer.toLowerCase() === "y" || answer.toLowerCase() === "yes";
+  return answer.toLowerCase() === "y" || answer.toLowerCase() === "yes" || answer.toLowerCase() === "s" || answer.toLowerCase() === "sim";
 }
 
 // --- Amount parsing ---
 
 function parseAmount(input: string): number {
-  // Accept: 25, 25.00, 25.5, R$25.00, BRL 25
   const cleaned = input.replace(/[R$\s,BRL]/gi, "").replace(",", ".");
   const num = parseFloat(cleaned);
   if (isNaN(num) || num <= 0) {
-    console.error(red(`  Invalid amount: "${input}"`));
-    console.error(dim("  Examples: 25.00, 10, R$50.00"));
+    console.error(red(`  ${t.invalidAmount}: "${input}"`));
+    console.error(dim(`  ${t.amountExamples}`));
     process.exit(1);
   }
-  return Math.round(num * 100); // convert to cents
+  return Math.round(num * 100);
 }
 
 function formatBRL(cents: number): string {
@@ -200,18 +201,26 @@ function bootstrap(config: JuntoConfig) {
   return { providers, guardrails, pickProvider };
 }
 
+function noProviders(): never {
+  console.log();
+  console.log(red(`  ${t.noProviders}`));
+  console.log(`  ${t.runSetup.replace("{cmd}", cyan("junto setup"))}`);
+  console.log();
+  process.exit(1);
+}
+
 // --- Commands ---
 
 async function cmdSetup() {
   console.log();
-  console.log(bold("  Junto Setup"));
+  console.log(bold(`  ${t.setupTitle}`));
   console.log();
 
   const config = loadConfig();
 
-  const existing = config.WOOVI_APP_ID ? dim(" (already configured)") : "";
-  console.log(`  Configure your Woovi/OpenPix API key${existing}`);
-  console.log(dim("  Get yours at https://app.woovi.com → API/Plugins → New API"));
+  const existing = config.WOOVI_APP_ID ? dim(` ${t.alreadyConfigured}`) : "";
+  console.log(`  ${t.setupPrompt}${existing}`);
+  console.log(dim(`  ${t.setupHint}`));
   console.log();
 
   const key = await askSecret("  WOOVI_APP_ID: ");
@@ -220,44 +229,36 @@ async function cmdSetup() {
     config.WOOVI_APP_ID = key;
     saveConfig(config);
     console.log();
-    console.log(green("  Saved to ~/.junto/config.json"));
+    console.log(green(`  ${t.saved}`));
     console.log();
-    console.log(dim("  Try it:"));
+    console.log(dim(`  ${t.tryIt}`));
     console.log(`  ${cyan("junto charge 1.00 \"Test charge\"")}`);
     console.log(`  ${cyan("junto providers")}`);
     console.log(`  ${cyan("junto limits")}`);
   } else {
-    console.log(dim("  Skipped."));
+    console.log(dim(`  ${t.skipped}`));
   }
 
   console.log();
 }
 
 async function cmdPay(args: string[]) {
-  // Parse: junto pay 25.00 maria@email.com [--note "Coffee"]
   if (args.length < 2) {
     console.log();
-    console.log(bold("  Usage:"));
-    console.log(`  ${cyan("junto pay")} ${dim("<amount> <destination> [--note \"memo\"] [--type EMAIL|CPF|PHONE|CNPJ]")}`);
+    console.log(bold(`  ${t.commands}`));
+    console.log(`  ${cyan("junto pay")} ${dim(t.payUsage)}`);
     console.log();
-    console.log(dim("  Examples:"));
-    console.log(`    junto pay 25.00 maria@email.com`);
-    console.log(`    junto pay 10 12345678900 --type CPF`);
-    console.log(`    junto pay 150.00 +5511999887766 --note "Rent"`);
+    console.log(dim("  " + (t.payExamples[0].startsWith("junto") ? "" : "  ")));
+    for (const ex of t.payExamples) {
+      console.log(`    ${ex}`);
+    }
     console.log();
     process.exit(1);
   }
 
   const config = loadConfig();
   const { providers, guardrails, pickProvider } = bootstrap(config);
-
-  if (providers.size === 0) {
-    console.log();
-    console.log(red("  No providers configured."));
-    console.log(`  Run ${cyan("junto setup")} to add your API key.`);
-    console.log();
-    process.exit(1);
-  }
+  if (providers.size === 0) noProviders();
 
   const amount = parseAmount(args[0]);
   const destination = args[1];
@@ -267,7 +268,6 @@ async function cmdPay(args: string[]) {
   const noteIdx = args.indexOf("--note");
   const note = noteIdx >= 0 ? args[noteIdx + 1] : undefined;
 
-  // Guardrails check
   const check = guardrails.checkPay({
     amount,
     currency: "BRL",
@@ -277,19 +277,18 @@ async function cmdPay(args: string[]) {
 
   if (!check.allowed) {
     console.log();
-    console.log(`  ${red("Blocked")}  ${check.reason}`);
+    console.log(`  ${red(t.blocked)}  ${check.reason}`);
     console.log();
     process.exit(1);
   }
 
-  // Show summary and confirm
   console.log();
-  console.log(bold("  Payment Summary"));
+  console.log(bold(`  ${t.paymentSummary}`));
   console.log();
-  console.log(`  Amount:       ${bold(formatBRL(amount))}`);
-  console.log(`  To:           ${destination} ${dim(`(${destType})`)}`);
-  if (note) console.log(`  Note:         ${note}`);
-  console.log(`  Provider:     ${pickProvider("BRL").name}`);
+  console.log(`  ${t.amount}:       ${bold(formatBRL(amount))}`);
+  console.log(`  ${t.to}:           ${destination} ${dim(`(${destType})`)}`);
+  if (note) console.log(`  ${t.note}:         ${note}`);
+  console.log(`  ${t.provider}:     ${pickProvider("BRL").name}`);
   console.log();
 
   if (check.needs_confirmation || amount > 100) {
@@ -297,16 +296,16 @@ async function cmdPay(args: string[]) {
       console.log(yellow(`  ${check.reason}`));
       console.log();
     }
-    const ok = await confirm("  Send this payment?");
+    const ok = await confirm(`  ${t.sendConfirm}`);
     if (!ok) {
-      console.log(dim("  Cancelled."));
+      console.log(dim(`  ${t.cancelled}`));
       console.log();
       return;
     }
   }
 
   console.log();
-  process.stdout.write(dim("  Sending..."));
+  process.stdout.write(dim(`  ${t.sending}`));
 
   try {
     const provider = pickProvider("BRL");
@@ -332,19 +331,19 @@ async function cmdPay(args: string[]) {
     });
 
     process.stdout.write("\r");
-    console.log(green("  Sent!"));
+    console.log(green(`  ${t.sent}`));
     console.log();
-    console.log(`  Amount:       ${bold(formatBRL(amount))}`);
-    console.log(`  To:           ${destination}`);
-    console.log(`  Provider:     ${result.provider}`);
-    console.log(`  Status:       ${green(result.status)}`);
-    console.log(`  ID:           ${dim(result.id)}`);
-    console.log(`  Time:         ${dim(result.timestamp)}`);
+    console.log(`  ${t.amount}:       ${bold(formatBRL(amount))}`);
+    console.log(`  ${t.to}:           ${destination}`);
+    console.log(`  ${t.provider}:     ${result.provider}`);
+    console.log(`  ${t.status}:       ${green(result.status)}`);
+    console.log(`  ${t.id}:           ${dim(result.id)}`);
+    console.log(`  ${t.time}:         ${dim(result.timestamp)}`);
     console.log();
-    console.log(dim(`  Check status: junto status ${result.id}`));
+    console.log(dim(`  ${t.checkStatus}: junto status ${result.id}`));
   } catch (err) {
     process.stdout.write("\r");
-    console.log(red(`  Failed: ${err instanceof Error ? err.message : String(err)}`));
+    console.log(red(`  ${t.failed}: ${err instanceof Error ? err.message : String(err)}`));
     guardrails.audit({
       timestamp: new Date().toISOString(),
       type: "payment",
@@ -363,32 +362,25 @@ async function cmdPay(args: string[]) {
 async function cmdCharge(args: string[]) {
   if (args.length < 1) {
     console.log();
-    console.log(bold("  Usage:"));
-    console.log(`  ${cyan("junto charge")} ${dim("<amount> [description]")}`);
+    console.log(bold(`  ${t.commands}`));
+    console.log(`  ${cyan("junto charge")} ${dim(t.chargeUsage)}`);
     console.log();
-    console.log(dim("  Examples:"));
-    console.log(`    junto charge 10.00 "Coffee"`);
-    console.log(`    junto charge 250`);
+    for (const ex of t.chargeExamples) {
+      console.log(`    ${ex}`);
+    }
     console.log();
     process.exit(1);
   }
 
   const config = loadConfig();
   const { providers, guardrails, pickProvider } = bootstrap(config);
-
-  if (providers.size === 0) {
-    console.log();
-    console.log(red("  No providers configured."));
-    console.log(`  Run ${cyan("junto setup")} to add your API key.`);
-    console.log();
-    process.exit(1);
-  }
+  if (providers.size === 0) noProviders();
 
   const amount = parseAmount(args[0]);
   const description = args.slice(1).join(" ") || undefined;
 
   console.log();
-  process.stdout.write(dim("  Creating charge..."));
+  process.stdout.write(dim(`  ${t.creatingCharge}`));
 
   try {
     const provider = pickProvider("BRL");
@@ -410,30 +402,30 @@ async function cmdCharge(args: string[]) {
     });
 
     process.stdout.write("\r");
-    console.log(green("  Charge created!"));
+    console.log(green(`  ${t.chargeCreated}`));
     console.log();
-    console.log(`  Amount:       ${bold(formatBRL(amount))}`);
-    if (description) console.log(`  Description:  ${description}`);
-    console.log(`  Status:       ${green(result.status)}`);
-    console.log(`  ID:           ${dim(result.id)}`);
+    console.log(`  ${t.amount}:       ${bold(formatBRL(amount))}`);
+    if (description) console.log(`  ${t.description}:  ${description}`);
+    console.log(`  ${t.status}:       ${green(result.status)}`);
+    console.log(`  ${t.id}:           ${dim(result.id)}`);
 
     if (result.payment_link) {
       console.log();
-      console.log(`  ${bold("Payment link:")}`);
+      console.log(`  ${bold(t.paymentLink)}`);
       console.log(`  ${cyan(result.payment_link)}`);
     }
 
     if (result.br_code) {
       console.log();
-      console.log(`  ${bold("Pix copy-paste:")}`);
+      console.log(`  ${bold(t.pixCopyPaste)}`);
       console.log(dim(`  ${result.br_code}`));
     }
 
     console.log();
-    console.log(dim(`  Check status: junto status ${result.id}`));
+    console.log(dim(`  ${t.checkStatus}: junto status ${result.id}`));
   } catch (err) {
     process.stdout.write("\r");
-    console.log(red(`  Failed: ${err instanceof Error ? err.message : String(err)}`));
+    console.log(red(`  ${t.failed}: ${err instanceof Error ? err.message : String(err)}`));
   }
   console.log();
 }
@@ -441,19 +433,12 @@ async function cmdCharge(args: string[]) {
 async function cmdStatus(args: string[]) {
   const config = loadConfig();
   const { providers, pickProvider } = bootstrap(config);
-
-  if (providers.size === 0) {
-    console.log();
-    console.log(red("  No providers configured."));
-    console.log(`  Run ${cyan("junto setup")} to add your API key.`);
-    console.log();
-    process.exit(1);
-  }
+  if (providers.size === 0) noProviders();
 
   if (args.length < 1) {
     console.log();
-    console.log(bold("  Usage:"));
-    console.log(`  ${cyan("junto status")} ${dim("<id>")}`);
+    console.log(bold(`  ${t.commands}`));
+    console.log(`  ${cyan("junto status")} ${dim(t.statusUsage)}`);
     console.log();
     process.exit(1);
   }
@@ -461,7 +446,7 @@ async function cmdStatus(args: string[]) {
   const id = args[0];
 
   console.log();
-  process.stdout.write(dim("  Checking..."));
+  process.stdout.write(dim(`  ${t.checking}`));
 
   try {
     const provider = pickProvider();
@@ -473,16 +458,16 @@ async function cmdStatus(args: string[]) {
       : result.status === "FAILED" ? red
       : dim;
 
-    console.log(`  ${bold("Status")}`);
+    console.log(`  ${bold(t.status)}`);
     console.log();
-    console.log(`  ID:           ${dim(result.id)}`);
-    console.log(`  Status:       ${statusColor(result.status)}`);
-    console.log(`  Amount:       ${formatBRL(result.amount)}`);
-    console.log(`  Provider:     ${result.provider}`);
-    console.log(`  Updated:      ${dim(result.timestamp)}`);
+    console.log(`  ${t.id}:           ${dim(result.id)}`);
+    console.log(`  ${t.status}:       ${statusColor(result.status)}`);
+    console.log(`  ${t.amount}:       ${formatBRL(result.amount)}`);
+    console.log(`  ${t.provider}:     ${result.provider}`);
+    console.log(`  ${t.updated}:      ${dim(result.timestamp)}`);
   } catch (err) {
     process.stdout.write("\r");
-    console.log(red(`  Failed: ${err instanceof Error ? err.message : String(err)}`));
+    console.log(red(`  ${t.failed}: ${err instanceof Error ? err.message : String(err)}`));
   }
   console.log();
 }
@@ -490,19 +475,12 @@ async function cmdStatus(args: string[]) {
 async function cmdRefund(args: string[]) {
   const config = loadConfig();
   const { providers, pickProvider } = bootstrap(config);
-
-  if (providers.size === 0) {
-    console.log();
-    console.log(red("  No providers configured."));
-    console.log(`  Run ${cyan("junto setup")} to add your API key.`);
-    console.log();
-    process.exit(1);
-  }
+  if (providers.size === 0) noProviders();
 
   if (args.length < 1) {
     console.log();
-    console.log(bold("  Usage:"));
-    console.log(`  ${cyan("junto refund")} ${dim("<id>")}`);
+    console.log(bold(`  ${t.commands}`));
+    console.log(`  ${cyan("junto refund")} ${dim(t.refundUsage)}`);
     console.log();
     process.exit(1);
   }
@@ -510,28 +488,28 @@ async function cmdRefund(args: string[]) {
   const id = args[0];
 
   console.log();
-  const ok = await confirm(`  Refund ${dim(id)}?`);
+  const ok = await confirm(`  ${t.refundConfirm} ${dim(id)}?`);
   if (!ok) {
-    console.log(dim("  Cancelled."));
+    console.log(dim(`  ${t.cancelled}`));
     console.log();
     return;
   }
 
-  process.stdout.write(dim("  Processing refund..."));
+  process.stdout.write(dim(`  ${t.processingRefund}`));
 
   try {
     const provider = pickProvider();
     const result = await provider.refund(id);
 
     process.stdout.write("\r");
-    console.log(green("  Refund submitted!"));
+    console.log(green(`  ${t.refundSubmitted}`));
     console.log();
-    console.log(`  ID:           ${dim(result.id)}`);
-    console.log(`  Status:       ${result.status}`);
-    console.log(`  Refunded:     ${formatBRL(result.refunded_amount)}`);
+    console.log(`  ${t.id}:           ${dim(result.id)}`);
+    console.log(`  ${t.status}:       ${result.status}`);
+    console.log(`  ${t.refunded}:     ${formatBRL(result.refunded_amount)}`);
   } catch (err) {
     process.stdout.write("\r");
-    console.log(red(`  Failed: ${err instanceof Error ? err.message : String(err)}`));
+    console.log(red(`  ${t.failed}: ${err instanceof Error ? err.message : String(err)}`));
   }
   console.log();
 }
@@ -539,17 +517,10 @@ async function cmdRefund(args: string[]) {
 async function cmdBalance() {
   const config = loadConfig();
   const { providers } = bootstrap(config);
-
-  if (providers.size === 0) {
-    console.log();
-    console.log(red("  No providers configured."));
-    console.log(`  Run ${cyan("junto setup")} to add your API key.`);
-    console.log();
-    process.exit(1);
-  }
+  if (providers.size === 0) noProviders();
 
   console.log();
-  console.log(bold("  Balance"));
+  console.log(bold(`  ${t.balanceTitle}`));
   console.log();
 
   for (const [, p] of providers) {
@@ -568,12 +539,12 @@ async function cmdProviders() {
   const { providers } = bootstrap(config);
 
   console.log();
-  console.log(bold("  Providers"));
+  console.log(bold(`  ${t.providersTitle}`));
   console.log();
 
   if (providers.size === 0) {
-    console.log(dim("  None configured."));
-    console.log(`  Run ${cyan("junto setup")} to add your first provider.`);
+    console.log(dim(`  ${t.noneConfigured}`));
+    console.log(`  ${t.addFirstProvider.replace("{cmd}", cyan("junto setup"))}`);
     console.log();
     return;
   }
@@ -581,9 +552,9 @@ async function cmdProviders() {
   for (const [, p] of providers) {
     const info = p.info();
     console.log(`  ${green("●")} ${bold(info.name)}`);
-    console.log(`    Currencies:  ${info.currencies.join(", ")}`);
-    console.log(`    Rails:       ${info.rails.join(", ")}`);
-    console.log(`    Settlement:  ${info.settlement}`);
+    console.log(`    ${t.currencies}:  ${info.currencies.join(", ")}`);
+    console.log(`    ${t.rails}:       ${info.rails.join(", ")}`);
+    console.log(`    ${t.settlement}:  ${info.settlement}`);
     console.log();
   }
 }
@@ -595,39 +566,39 @@ async function cmdLimits() {
   const status = guardrails.getStatus();
 
   console.log();
-  console.log(bold("  Spending Limits"));
+  console.log(bold(`  ${t.limitsTitle}`));
   console.log();
-  console.log(`  Daily limit:      ${bold(formatBRL(status.daily_limit))}`);
-  console.log(`  Spent today:      ${formatBRL(status.daily_spend)}`);
-  console.log(`  Remaining:        ${green(formatBRL(status.daily_remaining))}`);
-  console.log(`  Per-tx max:       ${formatBRL(status.per_tx_max)}`);
-  console.log(`  Confirm above:    ${formatBRL(status.confirm_above)}`);
+  console.log(`  ${t.dailyLimit}:      ${bold(formatBRL(status.daily_limit))}`);
+  console.log(`  ${t.spentToday}:      ${formatBRL(status.daily_spend)}`);
+  console.log(`  ${t.remaining}:        ${green(formatBRL(status.daily_remaining))}`);
+  console.log(`  ${t.perTxMax}:       ${formatBRL(status.per_tx_max)}`);
+  console.log(`  ${t.confirmAbove}:    ${formatBRL(status.confirm_above)}`);
   console.log();
 }
 
 function showHelp() {
   console.log();
-  console.log(bold("  Junto") + dim(" — The payment protocol for people and agents."));
+  console.log(bold("  Junto") + dim(` — ${t.tagline}`));
   console.log();
-  console.log(bold("  Commands:"));
+  console.log(bold(`  ${t.commands}`));
   console.log();
-  console.log(`  ${cyan("junto setup")}                            Configure API keys`);
-  console.log(`  ${cyan("junto pay")} ${dim("<amount> <destination>")}       Send money via Pix`);
-  console.log(`  ${cyan("junto charge")} ${dim("<amount> [description]")}    Create a payment request / QR code`);
-  console.log(`  ${cyan("junto status")} ${dim("<id>")}                      Check payment status`);
-  console.log(`  ${cyan("junto refund")} ${dim("<id>")}                      Refund a payment`);
-  console.log(`  ${cyan("junto balance")}                           Check available funds`);
-  console.log(`  ${cyan("junto providers")}                         List configured providers`);
-  console.log(`  ${cyan("junto limits")}                            Show spending limits`);
+  console.log(`  ${cyan("junto setup")}                            ${t.helpSetup}`);
+  console.log(`  ${cyan("junto pay")} ${dim("<amount> <destination>")}       ${t.helpPay}`);
+  console.log(`  ${cyan("junto charge")} ${dim("<amount> [description]")}    ${t.helpCharge}`);
+  console.log(`  ${cyan("junto status")} ${dim("<id>")}                      ${t.helpStatus}`);
+  console.log(`  ${cyan("junto refund")} ${dim("<id>")}                      ${t.helpRefund}`);
+  console.log(`  ${cyan("junto balance")}                           ${t.helpBalance}`);
+  console.log(`  ${cyan("junto providers")}                         ${t.helpProviders}`);
+  console.log(`  ${cyan("junto limits")}                            ${t.helpLimits}`);
   console.log();
-  console.log(bold("  Options:"));
+  console.log(bold(`  ${t.options}`));
   console.log();
-  console.log(`  ${dim("--mcp")}     Run as MCP server (for AI clients)`);
-  console.log(`  ${dim("--help")}    Show this help`);
-  console.log(`  ${dim("--version")} Show version`);
+  console.log(`  ${dim("--mcp")}     ${t.helpMcp}`);
+  console.log(`  ${dim("--help")}    ${t.helpHelp}`);
+  console.log(`  ${dim("--version")} ${t.helpVersion}`);
   console.log();
-  console.log(dim("  Config stored in ~/.junto/config.json"));
-  console.log(dim("  Audit log in ~/.junto/audit-YYYY-MM-DD.jsonl"));
+  console.log(dim(`  ${t.configStored}`));
+  console.log(dim(`  ${t.auditLog}`));
   console.log();
 }
 
@@ -641,18 +612,27 @@ export async function runCLI(args: string[]): Promise<void> {
     case "setup":
       return cmdSetup();
     case "pay":
+    case "pagar":
+    case "enviar":
       return cmdPay(rest);
     case "charge":
+    case "cobrar":
+    case "cobranca":
       return cmdCharge(rest);
     case "status":
       return cmdStatus(rest);
     case "refund":
+    case "reembolso":
+    case "estorno":
       return cmdRefund(rest);
     case "balance":
+    case "saldo":
       return cmdBalance();
     case "providers":
+    case "provedores":
       return cmdProviders();
     case "limits":
+    case "limites":
       return cmdLimits();
     case "--version":
     case "-v":
@@ -661,6 +641,7 @@ export async function runCLI(args: string[]): Promise<void> {
     case "--help":
     case "-h":
     case "help":
+    case "ajuda":
     default:
       showHelp();
       return;

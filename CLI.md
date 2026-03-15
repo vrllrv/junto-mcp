@@ -1,6 +1,7 @@
 # Junto CLI
 
 > Send and receive money from your terminal.
+> Envie e receba dinheiro pelo terminal.
 
 Junto runs in two modes:
 - **CLI mode** — human-friendly commands with colored output and confirmation prompts
@@ -10,23 +11,42 @@ Mode is auto-detected. If you type a command like `junto pay`, it runs in CLI mo
 
 ---
 
-## Install
+## Language / Idioma
+
+Junto auto-detects your system language. To set manually:
+
+```bash
+# PowerShell
+$env:JUNTO_LANG="pt-BR"; junto ajuda
+
+# Bash
+JUNTO_LANG=pt-BR junto ajuda
+```
+
+Supported: `en` (English), `pt-BR` (Portugues Brasileiro)
+
+---
+
+## Install / Instalar
 
 ```bash
 npm install -g junto-mcp
 ```
 
 This gives you the `junto` command globally.
+Isso disponibiliza o comando `junto` globalmente.
 
 ---
 
-## Setup
+## Setup / Configuracao
 
 ```bash
 junto setup
 ```
 
 Prompts for your API key (input is masked with `****`). The key is saved to `~/.junto/config.json` so you don't need environment variables for every command.
+
+Solicita sua chave de API (entrada mascarada com `****`). A chave e salva em `~/.junto/config.json`.
 
 ```
   Junto Setup
@@ -50,87 +70,101 @@ export WOOVI_APP_ID="your-key"
 
 ---
 
-## Commands
+## Commands / Comandos
 
-### `junto pay` — Send money
+All commands work in both English and Portuguese:
+
+| English | Portugues | Description / Descricao |
+|---|---|---|
+| `junto pay` | `junto pagar` / `junto enviar` | Send money / Enviar dinheiro |
+| `junto charge` | `junto cobrar` / `junto cobranca` | Create charge / Criar cobranca |
+| `junto status` | `junto status` | Check status / Verificar status |
+| `junto refund` | `junto reembolso` / `junto estorno` | Refund / Reembolsar |
+| `junto balance` | `junto saldo` | Check balance / Verificar saldo |
+| `junto providers` | `junto provedores` | List providers / Listar provedores |
+| `junto limits` | `junto limites` | Show limits / Mostrar limites |
+| `junto help` | `junto ajuda` | Show help / Mostrar ajuda |
+
+---
+
+### `junto pay` / `junto pagar` — Send money / Enviar dinheiro
 
 ```bash
 junto pay <amount> <destination> [options]
+junto pagar <valor> <destino> [options]
 ```
 
 Amounts are in reais (not cents). Destination type is auto-detected.
+Valores em reais (nao centavos). Tipo do destino e detectado automaticamente.
 
 ```bash
 junto pay 25.00 maria@email.com
-junto pay 10 12345678900 --type CPF
-junto pay 150.00 +5511999887766 --note "Rent"
+junto pagar 10 12345678900 --type CPF
+junto enviar 150.00 +5511999887766 --note "Aluguel"
 ```
 
-Options:
-- `--type EMAIL|CPF|PHONE|CNPJ|RANDOM` — override destination type detection
-- `--note "memo"` — attach a payment memo
+Options / Opcoes:
+- `--type EMAIL|CPF|PHONE|CNPJ|RANDOM` — override destination type / forcar tipo do destino
+- `--note "memo"` — attach a payment memo / adicionar nota
 
 The CLI will show a summary and ask for confirmation before sending:
 
 ```
-  Payment Summary
+  Resumo do Pagamento
 
-  Amount:       R$ 25.00
-  To:           maria@email.com (EMAIL)
-  Provider:     woovi
+  Valor:        R$ 25.00
+  Para:         maria@email.com (EMAIL)
+  Provedor:     woovi
 
-  Send this payment? [y/N] y
+  Enviar este pagamento? [y/N] y
 
-  Sent!
+  Enviado!
 
-  Amount:       R$ 25.00
-  To:           maria@email.com
-  Provider:     woovi
+  Valor:        R$ 25.00
+  Para:         maria@email.com
+  Provedor:     woovi
   Status:       COMPLETED
   ID:           junto-1773573908677-4klmf7
-  Time:         2026-03-15T11:25:09.568Z
+  Hora:         2026-03-15T11:25:09.568Z
 
-  Check status: junto status junto-1773573908677-4klmf7
+  Ver status: junto status junto-1773573908677-4klmf7
 ```
 
-### `junto charge` — Create a payment request / QR code
+### `junto charge` / `junto cobrar` — Create charge / Criar cobranca
 
 ```bash
 junto charge <amount> [description]
+junto cobrar <valor> [descricao]
 ```
 
 ```bash
 junto charge 10.00 "Coffee"
-junto charge 250
+junto cobrar 10.00 "Cafe"
 ```
 
 Returns a Pix QR code, payment link, and copy-paste code:
 
 ```
-  Charge created!
+  Cobranca criada!
 
-  Amount:       R$ 10.00
-  Description:  Coffee
+  Valor:        R$ 10.00
+  Descricao:    Cafe
   Status:       ACTIVE
   ID:           junto-1773573908677-x9y2z3
 
-  Payment link:
+  Link de pagamento:
   https://woovi.com/pay/f3c2b8c9-8122-43db-bbb2-9b4c01c00bf2
 
-  Pix copy-paste:
+  Pix copia e cola:
   00020101021226810014br.gov.bcb.pix2559qr.woovi.com/...
 
-  Check status: junto status junto-1773573908677-x9y2z3
+  Ver status: junto status junto-1773573908677-x9y2z3
 ```
 
-### `junto status` — Check payment status
+### `junto status` — Check payment status / Verificar status
 
 ```bash
 junto status <id>
-```
-
-```bash
-junto status junto-1773573908677-4klmf7
 ```
 
 ```
@@ -138,97 +172,102 @@ junto status junto-1773573908677-4klmf7
 
   ID:           junto-1773573908677-4klmf7
   Status:       COMPLETED
-  Amount:       R$ 25.00
-  Provider:     woovi
-  Updated:      2026-03-15T11:25:09.054Z
+  Valor:        R$ 25.00
+  Provedor:     woovi
+  Atualizado:   2026-03-15T11:25:09.054Z
 ```
 
 Status is color-coded: green for completed, yellow for active/pending, red for failed.
+Status com cores: verde para concluido, amarelo para ativo/pendente, vermelho para falha.
 
-### `junto refund` — Refund a payment
+### `junto refund` / `junto reembolso` — Refund / Reembolsar
 
 ```bash
 junto refund <id>
+junto reembolso <id>
+junto estorno <id>
 ```
 
-```bash
-junto refund junto-1773573908677-4klmf7
-```
+Asks for confirmation before processing. / Pede confirmacao antes de processar.
 
-Asks for confirmation before processing.
-
-### `junto balance` — Check available funds
+### `junto balance` / `junto saldo` — Check balance / Verificar saldo
 
 ```bash
 junto balance
+junto saldo
 ```
 
 ```
-  Balance
+  Saldo
 
   woovi:  R$ 150.00
 ```
 
 Requires the `ACCOUNT_GET_LIST` scope on your Woovi API key.
+Requer o escopo `ACCOUNT_GET_LIST` na sua chave Woovi.
 
-### `junto providers` — List configured providers
+### `junto providers` / `junto provedores` — List providers / Listar provedores
 
 ```bash
 junto providers
+junto provedores
 ```
 
 ```
-  Providers
+  Provedores
 
   ● woovi
-    Currencies:  BRL
-    Rails:       pix
-    Settlement:  instant
+    Moedas:      BRL
+    Meios:       pix
+    Liquidacao:  instant
 ```
 
-### `junto limits` — Show spending limits
+### `junto limits` / `junto limites` — Show limits / Mostrar limites
 
 ```bash
 junto limits
+junto limites
 ```
 
 ```
-  Spending Limits
+  Limites de Gasto
 
-  Daily limit:      R$ 500.00
-  Spent today:      R$ 25.00
-  Remaining:        R$ 475.00
-  Per-tx max:       R$ 200.00
-  Confirm above:    R$ 50.00
+  Limite diario:        R$ 500.00
+  Gasto hoje:           R$ 25.00
+  Restante:             R$ 475.00
+  Max por transacao:    R$ 200.00
+  Confirmar acima de:   R$ 50.00
 ```
 
 ---
 
-## Guardrails
+## Guardrails / Limites de Seguranca
 
 All guardrails apply in CLI mode, same as MCP mode:
+Todos os limites se aplicam no modo CLI, igual ao modo MCP:
 
-| Setting | Default | Configure via |
+| Setting / Configuracao | Default / Padrao | Configure via |
 |---|---|---|
-| Daily limit | R$ 500.00 | `JUNTO_DAILY_LIMIT` (in cents) |
-| Per-tx max | R$ 200.00 | `JUNTO_PER_TX_MAX` (in cents) |
-| Confirm above | R$ 50.00 | `JUNTO_CONFIRM_ABOVE` (in cents) |
+| Daily limit / Limite diario | R$ 500.00 | `JUNTO_DAILY_LIMIT` (in cents / em centavos) |
+| Per-tx max / Max por transacao | R$ 200.00 | `JUNTO_PER_TX_MAX` (in cents / em centavos) |
+| Confirm above / Confirmar acima de | R$ 50.00 | `JUNTO_CONFIRM_ABOVE` (in cents / em centavos) |
 
-- Payments above the per-tx max are **blocked**
-- Payments above the confirm threshold show a **confirmation prompt**
-- Daily limit tracks total spend for the day
+- Payments above the per-tx max are **blocked** / Pagamentos acima do max sao **bloqueados**
+- Payments above the confirm threshold show a **confirmation prompt** / Pagamentos acima do limite mostram **confirmacao**
+- Daily limit tracks total spend for the day / Limite diario acompanha o gasto total do dia
 
 ---
 
-## MCP Server Mode
+## MCP Server Mode / Modo Servidor MCP
 
 For AI clients (Claude Desktop, Cursor, etc.):
+Para clientes IA (Claude Desktop, Cursor, etc.):
 
 ```bash
 junto --mcp
 ```
 
-Or configure in your MCP client:
+Or configure in your MCP client / Ou configure no seu cliente MCP:
 
 ```json
 {
@@ -246,17 +285,18 @@ Or configure in your MCP client:
 
 ---
 
-## Files
+## Files / Arquivos
 
-| Path | Description |
+| Path / Caminho | Description / Descricao |
 |---|---|
-| `~/.junto/config.json` | Saved API keys and settings |
-| `~/.junto/audit-YYYY-MM-DD.jsonl` | Transaction audit log |
+| `~/.junto/config.json` | Saved API keys / Chaves de API salvas |
+| `~/.junto/audit-YYYY-MM-DD.jsonl` | Transaction audit log / Log de auditoria |
 
 ---
 
-## Quick Reference
+## Quick Reference / Referencia Rapida
 
+### English
 ```
 junto setup                            Configure API keys
 junto pay <amount> <destination>       Send money via Pix
@@ -269,4 +309,19 @@ junto limits                           Show spending limits
 junto --mcp                            Run as MCP server
 junto --version                        Show version
 junto --help                           Show help
+```
+
+### Portugues
+```
+junto setup                            Configurar chaves de API
+junto pagar <valor> <destino>          Enviar dinheiro via Pix
+junto cobrar <valor> [descricao]       Criar cobranca / QR code Pix
+junto status <id>                      Verificar status do pagamento
+junto reembolso <id>                   Reembolsar um pagamento
+junto saldo                            Verificar saldo disponivel
+junto provedores                       Listar provedores configurados
+junto limites                          Mostrar limites de gasto
+junto --mcp                            Rodar como servidor MCP
+junto --version                        Mostrar versao
+junto ajuda                            Mostrar ajuda
 ```

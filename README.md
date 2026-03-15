@@ -44,11 +44,32 @@ Set your provider API key:
 export WOOVI_APP_ID="your-woovi-app-id"
 ```
 
-Run:
+Run as CLI (human mode):
 
 ```bash
-junto-mcp
+junto pay 25.00 maria@email.com
+junto charge 10.00 "Coffee"
+junto balance
 ```
+
+Run as MCP server (for AI clients):
+
+```bash
+junto --mcp
+```
+
+### Portuguese / Portugues
+
+Junto auto-detects your system language, or set manually:
+
+```bash
+JUNTO_LANG=pt-BR junto ajuda
+junto pagar 25.00 maria@email.com
+junto cobrar 10.00 "Cafe"
+junto saldo
+```
+
+See [CLI.md](CLI.md) for the full command reference in both languages.
 
 ### Add to Claude Desktop or Cursor
 

@@ -26,6 +26,9 @@ const CLI_COMMANDS = new Set([
   "pay", "charge", "status", "refund", "balance",
   "providers", "limits", "setup", "help",
   "--help", "-h", "--version", "-v",
+  // pt-BR aliases
+  "pagar", "enviar", "cobrar", "cobranca", "reembolso", "estorno",
+  "saldo", "provedores", "limites", "ajuda",
 ]);
 
 const userArgs = process.argv.slice(2);
