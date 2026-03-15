@@ -22,14 +22,56 @@ import { WooviProvider } from "./providers/woovi.js";
 import { Guardrails, DEFAULT_CONFIG } from "./guardrails.js";
 import { t } from "./i18n.js";
 
-// --- Colors ---
+// --- Theme ---
+// Hex colors via ANSI 24-bit escape: \x1b[38;2;R;G;Bm
+// Fallback-safe: modern terminals (Windows Terminal, iTerm2, etc.) all support this.
+
+function hex(color: string): (s: string) => string {
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  return (s: string) => `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
+}
+
+function hexBg(color: string): (s: string) => string {
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  return (s: string) => `\x1b[48;2;${r};${g};${b}m${s}\x1b[0m`;
+}
+
+// Brand palette
+const primary = hex("#7C3AED");   // violet — brand identity
+const success = hex("#10B981");   // emerald — completed, sent
+const warning = hex("#F59E0B");   // amber — pending, confirm
+const error = hex("#EF4444");     // red — failed, blocked
+const accent = hex("#06B6D4");    // cyan — links, IDs, commands
+const muted = hex("#6B7280");     // gray — secondary info
+const money = hex("#10B981");     // emerald — amounts
+const label = hex("#9CA3AF");     // light gray — field labels
 
 const bold = (s: string) => `\x1b[1m${s}\x1b[0m`;
 const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
-const green = (s: string) => `\x1b[32m${s}\x1b[0m`;
-const yellow = (s: string) => `\x1b[33m${s}\x1b[0m`;
-const red = (s: string) => `\x1b[31m${s}\x1b[0m`;
-const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`;
+const boldPrimary = (s: string) => `\x1b[1m${primary(s)}`;
+const boldMoney = (s: string) => `\x1b[1m${money(s)}`;
+
+// Box drawing
+const BOX = {
+  tl: "╭", tr: "╮", bl: "╰", br: "╯",
+  h: "─", v: "│",
+  dot: "●", arrow: "→", check: "✓", cross: "✗", warn: "!",
+};
+
+// Status badge
+function badge(text: string, color: (s: string) => string): string {
+  return color(`${text}`);
+}
+
+// Shortcuts (keep old names working internally)
+const green = success;
+const yellow = warning;
+const red = error;
+const cyan = accent;
 
 // --- Config file ---
 
@@ -126,8 +168,8 @@ function parseAmount(input: string): number {
   const cleaned = input.replace(/[R$\s,BRL]/gi, "").replace(",", ".");
   const num = parseFloat(cleaned);
   if (isNaN(num) || num <= 0) {
-    console.error(red(`  ${t.invalidAmount}: "${input}"`));
-    console.error(dim(`  ${t.amountExamples}`));
+    console.error(`  ${error(BOX.cross)} ${t.invalidAmount}: "${input}"`);
+    console.error(muted(`  ${t.amountExamples}`));
     process.exit(1);
   }
   return Math.round(num * 100);
@@ -203,40 +245,45 @@ function bootstrap(config: JuntoConfig) {
 
 function noProviders(): never {
   console.log();
-  console.log(red(`  ${t.noProviders}`));
-  console.log(`  ${t.runSetup.replace("{cmd}", cyan("junto setup"))}`);
+  console.log(`  ${error(BOX.cross)} ${t.noProviders}`);
+  console.log(`    ${t.runSetup.replace("{cmd}", accent("junto setup"))}`);
   console.log();
   process.exit(1);
+}
+
+function divider(width = 48): string {
+  return muted(BOX.h.repeat(width));
 }
 
 // --- Commands ---
 
 async function cmdSetup() {
   console.log();
-  console.log(bold(`  ${t.setupTitle}`));
+  console.log(`  ${primary(BOX.dot)} ${boldPrimary(t.setupTitle)}`);
+  console.log(`  ${divider()}`);
   console.log();
 
   const config = loadConfig();
 
-  const existing = config.WOOVI_APP_ID ? dim(` ${t.alreadyConfigured}`) : "";
+  const existing = config.WOOVI_APP_ID ? muted(` ${t.alreadyConfigured}`) : "";
   console.log(`  ${t.setupPrompt}${existing}`);
-  console.log(dim(`  ${t.setupHint}`));
+  console.log(muted(`  ${t.setupHint}`));
   console.log();
 
-  const key = await askSecret("  WOOVI_APP_ID: ");
+  const key = await askSecret(`  ${label("WOOVI_APP_ID:")} `);
 
   if (key) {
     config.WOOVI_APP_ID = key;
     saveConfig(config);
     console.log();
-    console.log(green(`  ${t.saved}`));
+    console.log(`  ${success(BOX.check)} ${t.saved}`);
     console.log();
-    console.log(dim(`  ${t.tryIt}`));
-    console.log(`  ${cyan("junto charge 1.00 \"Test charge\"")}`);
-    console.log(`  ${cyan("junto providers")}`);
-    console.log(`  ${cyan("junto limits")}`);
+    console.log(muted(`  ${t.tryIt}`));
+    console.log(`    ${accent("junto charge 1.00 \"Test charge\"")}`);
+    console.log(`    ${accent("junto providers")}`);
+    console.log(`    ${accent("junto limits")}`);
   } else {
-    console.log(dim(`  ${t.skipped}`));
+    console.log(muted(`  ${t.skipped}`));
   }
 
   console.log();
@@ -277,35 +324,37 @@ async function cmdPay(args: string[]) {
 
   if (!check.allowed) {
     console.log();
-    console.log(`  ${red(t.blocked)}  ${check.reason}`);
+    console.log(`  ${error(BOX.cross)} ${bold(t.blocked)}`);
+    console.log(`    ${muted(check.reason ?? "")}`);
     console.log();
     process.exit(1);
   }
 
   console.log();
-  console.log(bold(`  ${t.paymentSummary}`));
+  console.log(`  ${primary(BOX.dot)} ${boldPrimary(t.paymentSummary)}`);
+  console.log(`  ${divider()}`);
   console.log();
-  console.log(`  ${t.amount}:       ${bold(formatBRL(amount))}`);
-  console.log(`  ${t.to}:           ${destination} ${dim(`(${destType})`)}`);
-  if (note) console.log(`  ${t.note}:         ${note}`);
-  console.log(`  ${t.provider}:     ${pickProvider("BRL").name}`);
+  console.log(`  ${label(t.amount + ":")}       ${boldMoney(formatBRL(amount))}`);
+  console.log(`  ${label(t.to + ":")}           ${bold(destination)} ${muted(`(${destType})`)}`);
+  if (note) console.log(`  ${label(t.note + ":")}         ${note}`);
+  console.log(`  ${label(t.provider + ":")}     ${pickProvider("BRL").name}`);
   console.log();
 
   if (check.needs_confirmation || amount > 100) {
     if (check.needs_confirmation) {
-      console.log(yellow(`  ${check.reason}`));
+      console.log(`  ${warning(BOX.warn)} ${warning(check.reason ?? "")}`);
       console.log();
     }
     const ok = await confirm(`  ${t.sendConfirm}`);
     if (!ok) {
-      console.log(dim(`  ${t.cancelled}`));
+      console.log(muted(`  ${t.cancelled}`));
       console.log();
       return;
     }
   }
 
   console.log();
-  process.stdout.write(dim(`  ${t.sending}`));
+  process.stdout.write(muted(`  ${t.sending}`));
 
   try {
     const provider = pickProvider("BRL");
@@ -331,19 +380,20 @@ async function cmdPay(args: string[]) {
     });
 
     process.stdout.write("\r");
-    console.log(green(`  ${t.sent}`));
+    console.log(`  ${success(BOX.check)} ${bold(t.sent)}`);
+    console.log(`  ${divider()}`);
     console.log();
-    console.log(`  ${t.amount}:       ${bold(formatBRL(amount))}`);
-    console.log(`  ${t.to}:           ${destination}`);
-    console.log(`  ${t.provider}:     ${result.provider}`);
-    console.log(`  ${t.status}:       ${green(result.status)}`);
-    console.log(`  ${t.id}:           ${dim(result.id)}`);
-    console.log(`  ${t.time}:         ${dim(result.timestamp)}`);
+    console.log(`  ${label(t.amount + ":")}       ${boldMoney(formatBRL(amount))}`);
+    console.log(`  ${label(t.to + ":")}           ${destination}`);
+    console.log(`  ${label(t.provider + ":")}     ${result.provider}`);
+    console.log(`  ${label(t.status + ":")}       ${success(result.status)}`);
+    console.log(`  ${label(t.id + ":")}           ${accent(result.id)}`);
+    console.log(`  ${label(t.time + ":")}         ${muted(result.timestamp)}`);
     console.log();
-    console.log(dim(`  ${t.checkStatus}: junto status ${result.id}`));
+    console.log(muted(`  ${t.checkStatus}: ${accent(`junto status ${result.id}`)}`));
   } catch (err) {
     process.stdout.write("\r");
-    console.log(red(`  ${t.failed}: ${err instanceof Error ? err.message : String(err)}`));
+    console.log(`  ${error(BOX.cross)} ${t.failed}: ${err instanceof Error ? err.message : String(err)}`);
     guardrails.audit({
       timestamp: new Date().toISOString(),
       type: "payment",
@@ -380,7 +430,7 @@ async function cmdCharge(args: string[]) {
   const description = args.slice(1).join(" ") || undefined;
 
   console.log();
-  process.stdout.write(dim(`  ${t.creatingCharge}`));
+  process.stdout.write(muted(`  ${t.creatingCharge}`));
 
   try {
     const provider = pickProvider("BRL");
@@ -402,30 +452,31 @@ async function cmdCharge(args: string[]) {
     });
 
     process.stdout.write("\r");
-    console.log(green(`  ${t.chargeCreated}`));
+    console.log(`  ${success(BOX.check)} ${bold(t.chargeCreated)}`);
+    console.log(`  ${divider()}`);
     console.log();
-    console.log(`  ${t.amount}:       ${bold(formatBRL(amount))}`);
-    if (description) console.log(`  ${t.description}:  ${description}`);
-    console.log(`  ${t.status}:       ${green(result.status)}`);
-    console.log(`  ${t.id}:           ${dim(result.id)}`);
+    console.log(`  ${label(t.amount + ":")}       ${boldMoney(formatBRL(amount))}`);
+    if (description) console.log(`  ${label(t.description + ":")}  ${description}`);
+    console.log(`  ${label(t.status + ":")}       ${success(result.status)}`);
+    console.log(`  ${label(t.id + ":")}           ${accent(result.id)}`);
 
     if (result.payment_link) {
       console.log();
-      console.log(`  ${bold(t.paymentLink)}`);
-      console.log(`  ${cyan(result.payment_link)}`);
+      console.log(`  ${primary(BOX.arrow)} ${bold(t.paymentLink)}`);
+      console.log(`    ${accent(result.payment_link)}`);
     }
 
     if (result.br_code) {
       console.log();
-      console.log(`  ${bold(t.pixCopyPaste)}`);
-      console.log(dim(`  ${result.br_code}`));
+      console.log(`  ${primary(BOX.arrow)} ${bold(t.pixCopyPaste)}`);
+      console.log(muted(`    ${result.br_code}`));
     }
 
     console.log();
-    console.log(dim(`  ${t.checkStatus}: junto status ${result.id}`));
+    console.log(muted(`  ${t.checkStatus}: ${accent(`junto status ${result.id}`)}`));
   } catch (err) {
     process.stdout.write("\r");
-    console.log(red(`  ${t.failed}: ${err instanceof Error ? err.message : String(err)}`));
+    console.log(`  ${error(BOX.cross)} ${t.failed}: ${err instanceof Error ? err.message : String(err)}`);
   }
   console.log();
 }
@@ -446,28 +497,33 @@ async function cmdStatus(args: string[]) {
   const id = args[0];
 
   console.log();
-  process.stdout.write(dim(`  ${t.checking}`));
+  process.stdout.write(muted(`  ${t.checking}`));
 
   try {
     const provider = pickProvider();
     const result = await provider.status(id);
 
     process.stdout.write("\r");
-    const statusColor = result.status === "COMPLETED" ? green
-      : result.status === "ACTIVE" ? yellow
-      : result.status === "FAILED" ? red
-      : dim;
+    const statusColor = result.status === "COMPLETED" ? success
+      : result.status === "ACTIVE" ? warning
+      : result.status === "FAILED" ? error
+      : muted;
+    const statusIcon = result.status === "COMPLETED" ? success(BOX.check)
+      : result.status === "ACTIVE" ? warning(BOX.dot)
+      : result.status === "FAILED" ? error(BOX.cross)
+      : muted(BOX.dot);
 
-    console.log(`  ${bold(t.status)}`);
+    console.log(`  ${statusIcon} ${boldPrimary(t.status)}`);
+    console.log(`  ${divider()}`);
     console.log();
-    console.log(`  ${t.id}:           ${dim(result.id)}`);
-    console.log(`  ${t.status}:       ${statusColor(result.status)}`);
-    console.log(`  ${t.amount}:       ${formatBRL(result.amount)}`);
-    console.log(`  ${t.provider}:     ${result.provider}`);
-    console.log(`  ${t.updated}:      ${dim(result.timestamp)}`);
+    console.log(`  ${label(t.id + ":")}           ${accent(result.id)}`);
+    console.log(`  ${label(t.status + ":")}       ${statusColor(result.status)}`);
+    console.log(`  ${label(t.amount + ":")}       ${boldMoney(formatBRL(result.amount))}`);
+    console.log(`  ${label(t.provider + ":")}     ${result.provider}`);
+    console.log(`  ${label(t.updated + ":")}      ${muted(result.timestamp)}`);
   } catch (err) {
     process.stdout.write("\r");
-    console.log(red(`  ${t.failed}: ${err instanceof Error ? err.message : String(err)}`));
+    console.log(`  ${error(BOX.cross)} ${t.failed}: ${err instanceof Error ? err.message : String(err)}`);
   }
   console.log();
 }
@@ -488,28 +544,29 @@ async function cmdRefund(args: string[]) {
   const id = args[0];
 
   console.log();
-  const ok = await confirm(`  ${t.refundConfirm} ${dim(id)}?`);
+  const ok = await confirm(`  ${t.refundConfirm} ${accent(id)}?`);
   if (!ok) {
-    console.log(dim(`  ${t.cancelled}`));
+    console.log(muted(`  ${t.cancelled}`));
     console.log();
     return;
   }
 
-  process.stdout.write(dim(`  ${t.processingRefund}`));
+  process.stdout.write(muted(`  ${t.processingRefund}`));
 
   try {
     const provider = pickProvider();
     const result = await provider.refund(id);
 
     process.stdout.write("\r");
-    console.log(green(`  ${t.refundSubmitted}`));
+    console.log(`  ${success(BOX.check)} ${bold(t.refundSubmitted)}`);
+    console.log(`  ${divider()}`);
     console.log();
-    console.log(`  ${t.id}:           ${dim(result.id)}`);
-    console.log(`  ${t.status}:       ${result.status}`);
-    console.log(`  ${t.refunded}:     ${formatBRL(result.refunded_amount)}`);
+    console.log(`  ${label(t.id + ":")}           ${accent(result.id)}`);
+    console.log(`  ${label(t.status + ":")}       ${success(result.status)}`);
+    console.log(`  ${label(t.refunded + ":")}     ${boldMoney(formatBRL(result.refunded_amount))}`);
   } catch (err) {
     process.stdout.write("\r");
-    console.log(red(`  ${t.failed}: ${err instanceof Error ? err.message : String(err)}`));
+    console.log(`  ${error(BOX.cross)} ${t.failed}: ${err instanceof Error ? err.message : String(err)}`);
   }
   console.log();
 }
@@ -520,15 +577,16 @@ async function cmdBalance() {
   if (providers.size === 0) noProviders();
 
   console.log();
-  console.log(bold(`  ${t.balanceTitle}`));
+  console.log(`  ${primary(BOX.dot)} ${boldPrimary(t.balanceTitle)}`);
+  console.log(`  ${divider()}`);
   console.log();
 
   for (const [, p] of providers) {
     try {
       const result = await p.balance();
-      console.log(`  ${p.name}:  ${bold(formatBRL(result.available))}`);
+      console.log(`  ${success(BOX.dot)} ${label(p.name + ":")}  ${boldMoney(formatBRL(result.available))}`);
     } catch (err) {
-      console.log(`  ${p.name}:  ${dim(err instanceof Error ? err.message : "unavailable")}`);
+      console.log(`  ${muted(BOX.dot)} ${label(p.name + ":")}  ${muted(err instanceof Error ? err.message : "unavailable")}`);
     }
   }
   console.log();
@@ -539,22 +597,23 @@ async function cmdProviders() {
   const { providers } = bootstrap(config);
 
   console.log();
-  console.log(bold(`  ${t.providersTitle}`));
+  console.log(`  ${primary(BOX.dot)} ${boldPrimary(t.providersTitle)}`);
+  console.log(`  ${divider()}`);
   console.log();
 
   if (providers.size === 0) {
-    console.log(dim(`  ${t.noneConfigured}`));
-    console.log(`  ${t.addFirstProvider.replace("{cmd}", cyan("junto setup"))}`);
+    console.log(muted(`  ${t.noneConfigured}`));
+    console.log(`  ${t.addFirstProvider.replace("{cmd}", accent("junto setup"))}`);
     console.log();
     return;
   }
 
   for (const [, p] of providers) {
     const info = p.info();
-    console.log(`  ${green("●")} ${bold(info.name)}`);
-    console.log(`    ${t.currencies}:  ${info.currencies.join(", ")}`);
-    console.log(`    ${t.rails}:       ${info.rails.join(", ")}`);
-    console.log(`    ${t.settlement}:  ${info.settlement}`);
+    console.log(`  ${success(BOX.dot)} ${bold(info.name)}`);
+    console.log(`    ${label(t.currencies + ":")}  ${info.currencies.join(", ")}`);
+    console.log(`    ${label(t.rails + ":")}       ${info.rails.join(", ")}`);
+    console.log(`    ${label(t.settlement + ":")}  ${info.settlement}`);
     console.log();
   }
 }
@@ -565,14 +624,27 @@ async function cmdLimits() {
 
   const status = guardrails.getStatus();
 
+  // Simple progress bar
+  const pct = status.daily_limit > 0
+    ? Math.min(1, status.daily_spend / status.daily_limit)
+    : 0;
+  const barWidth = 24;
+  const filled = Math.round(pct * barWidth);
+  const barColor = pct > 0.9 ? error : pct > 0.7 ? warning : success;
+  const bar = barColor("█".repeat(filled)) + muted("░".repeat(barWidth - filled));
+
   console.log();
-  console.log(bold(`  ${t.limitsTitle}`));
+  console.log(`  ${primary(BOX.dot)} ${boldPrimary(t.limitsTitle)}`);
+  console.log(`  ${divider()}`);
   console.log();
-  console.log(`  ${t.dailyLimit}:      ${bold(formatBRL(status.daily_limit))}`);
-  console.log(`  ${t.spentToday}:      ${formatBRL(status.daily_spend)}`);
-  console.log(`  ${t.remaining}:        ${green(formatBRL(status.daily_remaining))}`);
-  console.log(`  ${t.perTxMax}:       ${formatBRL(status.per_tx_max)}`);
-  console.log(`  ${t.confirmAbove}:    ${formatBRL(status.confirm_above)}`);
+  console.log(`  ${label(t.dailyLimit + ":")}      ${bold(formatBRL(status.daily_limit))}`);
+  console.log(`  ${label(t.spentToday + ":")}      ${formatBRL(status.daily_spend)}`);
+  console.log(`  ${label(t.remaining + ":")}        ${boldMoney(formatBRL(status.daily_remaining))}`);
+  console.log();
+  console.log(`  ${bar} ${muted(`${Math.round(pct * 100)}%`)}`);
+  console.log();
+  console.log(`  ${label(t.perTxMax + ":")}       ${formatBRL(status.per_tx_max)}`);
+  console.log(`  ${label(t.confirmAbove + ":")}    ${formatBRL(status.confirm_above)}`);
   console.log();
 }
 
@@ -582,7 +654,15 @@ function pad(s: string, len: number): string {
 
 function showHelp() {
   console.log();
-  console.log(bold("  Junto") + dim(` — ${t.tagline}`));
+  console.log(primary("       _             _        "));
+  console.log(primary("      | |_   _ _ __ | |_ ___  "));
+  console.log(primary("   _  | | | | | '_ \\| __/ _ \\ "));
+  console.log(primary("  | |_| | |_| | | | | || (_) |"));
+  console.log(primary("   \\___/ \\__,_|_| |_|\\__\\___/ "));
+  console.log();
+  console.log(muted(`  ${t.tagline}`));
+  console.log();
+  console.log(`  ${divider()}`);
   console.log();
   console.log(bold(`  ${t.commands}`));
   console.log();
@@ -600,18 +680,18 @@ function showHelp() {
 
   for (const { cmd, args, desc } of cmds) {
     const left = args ? `${cmd} ${args}` : cmd;
-    console.log(`  ${cyan(cmd)}${args ? " " + dim(args) : ""}${" ".repeat(Math.max(1, 40 - left.length))}${desc}`);
+    console.log(`  ${accent(cmd)}${args ? " " + muted(args) : ""}${" ".repeat(Math.max(1, 40 - left.length))}${desc}`);
   }
 
   console.log();
   console.log(bold(`  ${t.options}`));
   console.log();
-  console.log(`  ${dim("--mcp")}     ${t.helpMcp}`);
-  console.log(`  ${dim("--help")}    ${t.helpHelp}`);
-  console.log(`  ${dim("--version")} ${t.helpVersion}`);
+  console.log(`  ${muted("--mcp")}     ${t.helpMcp}`);
+  console.log(`  ${muted("--help")}    ${t.helpHelp}`);
+  console.log(`  ${muted("--version")} ${t.helpVersion}`);
   console.log();
-  console.log(dim(`  ${t.configStored}`));
-  console.log(dim(`  ${t.auditLog}`));
+  console.log(muted(`  ${t.configStored}`));
+  console.log(muted(`  ${t.auditLog}`));
   console.log();
 }
 
