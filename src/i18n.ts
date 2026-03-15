@@ -332,12 +332,25 @@ const locales: Record<string, Messages> = {
   "pt-br": ptBR,
 };
 
+// Portuguese command aliases — if the user types one of these, they want pt-BR
+const PT_COMMANDS = new Set([
+  "pagar", "enviar", "cobrar", "cobranca",
+  "reembolso", "estorno", "saldo",
+  "provedores", "limites", "ajuda",
+]);
+
 function detectLocale(): Locale {
   // 1. Explicit override
   const override = process.env.JUNTO_LANG;
   if (override && locales[override]) return override as Locale;
 
-  // 2. System locale detection
+  // 2. Detect from command: if user typed a Portuguese alias, use pt-BR
+  const firstArg = process.argv[2]?.toLowerCase();
+  if (firstArg && PT_COMMANDS.has(firstArg)) {
+    return "pt-BR";
+  }
+
+  // 3. System locale detection
   const lang =
     process.env.LANG ??
     process.env.LC_ALL ??
