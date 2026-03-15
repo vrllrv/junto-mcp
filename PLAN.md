@@ -2,60 +2,36 @@
 
 ## Context
 
-Junto is a payment MCP server (v0.1.0) with Pix support. Before pushing to GitHub, we need to fix compile blockers, close security gaps, and build comprehensive test coverage. A thorough audit found **25 issues** across 4 severity levels.
+Junto is a payment MCP server (v0.1.1, published on npm and MCP Registry) with live Pix support via Woovi. The Woovi/Pix integration has been **verified with real transactions** (charge, status, payment — all confirmed working, March 2026). The project compiles, runs, and has been published. Remaining work focuses on expanding provider coverage and hardening.
 
 ---
 
-## Phase 1: Fix Compile Blockers
+## Phase 1: Fix Compile Blockers — COMPLETED
 
-The project won't compile or run currently. All imports already assume a `src/providers/` directory structure (confirmed by file headers and import paths), so we move files rather than rewrite imports.
+All compile blockers resolved. Project structure is in place, `tsc` compiles cleanly, `npm run build` succeeds.
 
-### 1.1 Reorganize into intended directory structure
 ```
 src/
-  index.ts          ← (move from root)
-  types.ts          ← (move from root)
-  guardrails.ts     ← (move from root)
+  index.ts
+  types.ts
+  guardrails.ts
   providers/
-    woovi.ts        ← (move from root)
+    woovi.ts
 test/
-  guardrails.test.ts  ← (move from root)
-  index.test.ts       ← (new, Phase 3)
-  woovi.test.ts       ← (new, Phase 3)
-  helpers/
-    mock-provider.ts  ← (new, Phase 3)
+  guardrails.test.ts
+  smoke.test.ts
+  live-pix.ts
+demo/
+  demo.ts
 ```
-**Zero import changes needed** — all paths already match this layout.
-
-### 1.2 Create `tsconfig.json`
-- `module: "Node16"` + `moduleResolution: "Node16"` (ESM with `.js` extensions)
-- `rootDir: "src"`, `outDir: "dist"` (matches package.json bin/main)
-- `strict: true`
-
-### 1.3 Fix `package.json` test script
-- Change `test/guardrails.test.ts` path (already correct after move)
-- Add new test files to test script
-
-### 1.4 Verify: `npm install && npx tsc --noEmit && npm run build`
 
 ---
 
-## Phase 2: Security & Compliance Fixes
+## Phase 2: Security & Compliance Fixes — COMPLETED
 
-### 2.1 Add missing audit logging (4 gaps)
-- **`src/index.ts` — charge tool error path**: no `guardrails.audit()` call on failure
-- **`src/index.ts` — status tool**: zero audit logging (success or failure)
-- **`src/index.ts` — balance tool**: zero audit logging (success or failure)
-- **`src/index.ts` — refund tool error path**: no audit on failure
-
-Each gets `guardrails.audit({...})` with timestamp, action, tool, status, reason.
-
-### 2.2 Fix Windows compatibility (`src/guardrails.ts`)
-- Replace `process.env.HOME ?? "."` with `os.homedir()` — works on all platforms
-
-### 2.3 Clarify `recordSpend` for confirmed payments
-- Add comment explaining `recordSpend` is correctly NOT called in the `needs_confirmation` path (no money moved yet — it's called on actual execution)
-- Track the `needs_confirmation` infinite loop as a v0.2.0 design issue
+- All audit logging gaps closed (charge, status, balance, refund — all paths)
+- Windows compatibility fixed (`os.homedir()`)
+- `recordSpend` correctly documented (not called on confirmation path)
 
 ---
 
@@ -94,52 +70,40 @@ Each gets `guardrails.audit({...})` with timestamp, action, tool, status, reason
 
 ---
 
-## Phase 4: Cleanup
+## Phase 4: Cleanup — COMPLETED
 
-### 4.1 Add Zod validation on Woovi API responses (`src/providers/woovi.ts`)
-- Replace unsafe `as` type casts with Zod schemas (`.parse()`)
-- Clear error messages on unexpected API response shapes
-
-### 4.2 Update `package.json` metadata
-- Fill in `author` field
-- Update repository URL (placeholder `user/junto-mcp`)
-
-### 4.3 Make Woovi timeout configurable
-- Accept `timeoutMs` in constructor, read from `WOOVI_TIMEOUT_MS` env var
-
-### 4.4 Remove emoji from error messages
-- `🚫`/`❌`/`⚠️` → plain text (machine-parsed output shouldn't contain emoji)
-
-### 4.5 Replace TODO comment with version-scoped note
+- Zod validation on Woovi API responses (`.parse()` instead of `as` casts)
+- `package.json` metadata filled in (author: vrllrv, repo URL, files field, mcpName)
+- Woovi timeout configurable via `WOOVI_TIMEOUT_MS` env var
+- Emoji removed from error messages
+- Published to npm as v0.1.1
+- Published to official MCP Registry as `io.github.vrllrv/junto-mcp`
 
 ---
 
-## Phase 5: Final Verification
+## Phase 5: Final Verification — COMPLETED
 
-```bash
-npm run build              # tsc compiles src/ → dist/
-npm test                   # all test suites pass
-WOOVI_APP_ID=test node dist/index.js   # smoke test — server starts
-```
-
-Verify `dist/` structure mirrors `src/`, then commit and push.
+All checks pass:
+- `npm run build` — compiles cleanly
+- `npm test` — guardrail tests pass
+- `npm run test:smoke` — full flow smoke tests pass
+- **Live Pix test** — real charge created, status checked, payment confirmed (March 2026)
+- Interactive demo script (`demo/demo.ts`) — runs 7-step demo with real API calls
 
 ---
 
-## Files Modified/Created
+## Current File Structure
 
-| File | Action |
-|------|--------|
-| `src/index.ts` | Move + refactor (createServer export, audit gaps, emoji, TODO) |
-| `src/types.ts` | Move only |
-| `src/guardrails.ts` | Move + fix (os.homedir) |
-| `src/providers/woovi.ts` | Move + fix (Zod validation, configurable timeout) |
-| `test/guardrails.test.ts` | Move only |
-| `test/helpers/mock-provider.ts` | **New** — mock PaymentProvider |
-| `test/index.test.ts` | **New** — 20-25 tool tests |
-| `test/woovi.test.ts` | **New** — 15-18 provider tests |
-| `tsconfig.json` | **New** — TypeScript config |
-| `package.json` | Fix test script + metadata |
+| File | Description |
+|------|-------------|
+| `src/index.ts` | MCP server — 7 tools, routing, guardrails |
+| `src/types.ts` | Core interfaces and error types |
+| `src/guardrails.ts` | Spend limits, HITL, audit logging |
+| `src/providers/woovi.ts` | Woovi/Pix adapter (Zod-validated, live-tested) |
+| `test/guardrails.test.ts` | Guardrail unit tests |
+| `test/smoke.test.ts` | Full flow smoke tests (mock provider) |
+| `test/live-pix.ts` | Live Pix CLI tester |
+| `demo/demo.ts` | Interactive demo for screen recordings |
 
 ---
 
@@ -147,3 +111,5 @@ Verify `dist/` structure mirrors `src/`, then commit and push.
 - `needs_confirmation` has no mechanism to distinguish first call from confirmed retry (infinite loop risk)
 - No webhook support for async payment status updates
 - Stripe/Wise/Belvo providers not yet implemented
+- Woovi `pay()` uses single POST — may need 2-step flow (POST + APPROVE) depending on account config
+- Woovi `balance()` not supported (no public API endpoint)

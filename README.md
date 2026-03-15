@@ -126,7 +126,7 @@ Please confirm with the user before proceeding.
 
 | Provider | Region | Rails | Status |
 |---|---|---|---|
-| **Woovi/OpenPix** | Brazil | Pix | 🟢 Shipped |
+| **Woovi/OpenPix** | Brazil | Pix | 🟢 Live (tested with real Pix transactions) |
 | **Belvo** | Brazil | Open Finance (all banks) | 🟡 Next |
 | **Stripe** | Global | Cards, ACH, SEPA | 🟡 Next |
 | **Wise** | Global | Bank transfers | 🔴 Planned |
@@ -140,6 +140,7 @@ Please confirm with the user before proceeding.
 - 180M+ Pix users, 80B+ transactions in 2025
 - Pix Automático (launched June 2025) enables recurring payments
 - Low fees, no intermediaries
+- **Verified:** charge, status, and payment flows tested with real Pix transactions (March 2026)
 
 ## Demo
 
@@ -190,10 +191,32 @@ Copy `src/providers/_template.ts` to get started, then register your provider in
 ## Testing
 
 ```bash
-npm test
+npm test              # Guardrail unit tests
+npm run test:smoke    # Full flow smoke tests (mock provider)
 ```
 
-Runs guardrail tests covering: amount limits, daily budget tracking, confirmation thresholds, provider allowlists, and destination type filtering.
+### Live testing with real Pix
+
+```bash
+# Create a Pix charge (R$1.00)
+WOOVI_APP_ID=your-key npx tsx test/live-pix.ts charge 100 "Test charge"
+
+# Check status
+WOOVI_APP_ID=your-key npx tsx test/live-pix.ts status <correlation-id>
+
+# Send a Pix payment
+WOOVI_APP_ID=your-key npx tsx test/live-pix.ts pay 100 user@email.com EMAIL
+
+# Refund
+WOOVI_APP_ID=your-key npx tsx test/live-pix.ts refund <correlation-id>
+```
+
+### Interactive demo
+
+```bash
+npx tsx demo/demo.ts          # Full demo with typewriter narration + real API calls
+npx tsx demo/demo.ts --fast   # Fast mode for rehearsals
+```
 
 ## Audit Log
 
@@ -216,10 +239,11 @@ Every transaction is logged to `~/.junto/audit-YYYY-MM-DD.jsonl`:
 ## Roadmap
 
 - [x] Core MCP server with universal tool interface
-- [x] Woovi/OpenPix provider (Pix)
+- [x] Woovi/OpenPix provider (Pix) — **live-tested with real transactions**
 - [x] Guardrails (daily limits, per-tx max, HITL confirmation)
 - [x] Audit ledger
 - [x] junto-skill (Claude behavioral layer)
+- [x] Interactive demo (`npx tsx demo/demo.ts`)
 - [ ] Belvo provider (Open Finance — all Brazilian banks)
 - [ ] Stripe provider (Cards, ACH, SEPA)
 - [ ] junto-approve (Telegram/WhatsApp confirmation for HITL)
